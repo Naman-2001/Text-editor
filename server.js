@@ -1,9 +1,11 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
 const Pusher = require("pusher");
 
 const app = express();
 app.use(bodyParser.json());
+app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(express.static("./"));
@@ -19,8 +21,10 @@ app.post("/pusher/auth", (req, res) => {
   console.log(req.body);
   const socketId = req.body.socket_id;
   const channel = req.body.channel_name;
-  const auth = pusher.authenticate(socketId, channel);
-  console.log(auth);
+  const user_id = req.cookies.user_id;
+
+  const presenceData = { user_id };
+  const auth = pusher.authenticate(socketId, channel, presenceData);
   res.send(auth);
 });
 
