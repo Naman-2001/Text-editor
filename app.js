@@ -3,19 +3,6 @@
   doc.contentEditable = true;
   doc.focus;
 
-  const getUniqueId = () => {
-    return "private-" + Math.random().toString(36).substr(2, 9);
-  };
-
-  const getUrlParameter = (name) => {
-    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
-    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
-    var results = regex.exec(location.search);
-    return results === null
-      ? ""
-      : decodeURIComponent(results[1].replace(/\+/g, " "));
-  };
-
   var id = getUrlParameter("id");
   if (!id) {
     console.log(location.search);
@@ -27,21 +14,41 @@
   }
 
   return new Promise(function (resolve, reject) {
+    // subscribe to the changes via Pusher
     var pusher = new Pusher("51f141add7a2e1e3715f", { cluster: "ap2" });
     var channel = pusher.subscribe(id);
-    channel.bind("client-text-edit", (data) => {
-      var currentCursorPosition = getCaretCharacter(doc);
-      doc.innerHTML = data;
+    channel.bind("client-text-edit", function (html) {
+      // save the current position
+      var currentCursorPosition = getCaretCharacterOffsetWithin(doc);
+      doc.innerHTML = html;
+      // set the previous cursor position
       setCaretPosition(doc, currentCursorPosition);
+    });
+    channel.bind("pusher:subscription_succeeded", function () {
+      resolve(channel);
     });
   }).then(function (channel) {
     function triggerChange(e) {
-      console.log(e);
       channel.trigger("client-text-edit", e.target.innerHTML);
     }
+
     doc.addEventListener("input", triggerChange);
   });
-  function getCaretCharacter(element) {
+
+  function getUniqueId() {
+    return "private-" + Math.random().toString(36).substr(2, 9);
+  }
+
+  function getUrlParameter(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
+    var results = regex.exec(location.search);
+    return results === null
+      ? ""
+      : decodeURIComponent(results[1].replace(/\+/g, " "));
+  }
+
+  function getCaretCharacterOffsetWithin(element) {
     var caretOffset = 0;
     var doc = element.ownerDocument || element.document;
     var win = doc.defaultView || doc.parentWindow;
